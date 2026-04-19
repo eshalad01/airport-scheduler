@@ -79,6 +79,11 @@ Compare all 7 algorithms side by side.
 
 `/screenshots/comparison-screen.png`
 
+
+# Contributors
+- [@saroshanwerali](https://github.com/saroshmorani)
+- [@eshalad01](https://github.com/eshalad01)
+
 # 📂 Project Structure
 ```bash
 airport_scheduler/
