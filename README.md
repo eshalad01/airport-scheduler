@@ -1,4 +1,4 @@
-# ✈️ Airport CPU Scheduling Simulator
+# Airport CPU Scheduling Simulator
 
 A graphical **CPU Process Scheduling Simulator** built in **C + SDL2** with a unique **Airport Check-In Theme**.  
 This project demonstrates how classic Operating System scheduling algorithms work using animated queues, passengers, and Gantt chart visualization.
