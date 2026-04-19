@@ -67,7 +67,6 @@ Strict priority based execution
 `/screenshots/algorithm-selection.png`
 
 ## Results Screen
-
 - Animated Gantt Chart
 - Waiting Time
 - Turnaround Time
@@ -76,13 +75,11 @@ Strict priority based execution
 `/screenshots/results-screen.png`
 
 ## Comparison Screen
-
 Compare all 7 algorithms side by side.
 
 `/screenshots/comparison-screen.png`
 
 # 📂 Project Structure
-
 ```bash
 airport_scheduler/
 │── include/
