@@ -81,8 +81,12 @@ Compare all 7 algorithms side by side.
 
 
 # Contributors
-- [@saroshanwerali](https://github.com/saroshmorani)
-- [@eshalad01](https://github.com/eshalad01)
+<a href="https://github.com/eshalad01">
+  <img src="https://github.com/eshalad01.png" width="80px;" alt="Eshal Adnan Qureshi"/>
+</a>
+<a href="https://github.com/saroshmorani">
+  <img src="https://github.com/saroshmorani.png" width="80px;" alt="Sarosh Anwerali Morani"/>
+</a>
 
 # 📂 Project Structure
 ```bash
