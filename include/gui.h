@@ -6,8 +6,8 @@
 #include "../include/scheduler.h"
 
 // Window dimensions
-#define WINDOW_W 1100
-#define WINDOW_H 720
+#define WINDOW_W 1200
+#define WINDOW_H 760
 
 // Colors (R, G, B, A)
 #define COLOR_BG          10,  14,  26, 255
@@ -28,6 +28,7 @@
 #define SCREEN_INPUT      3
 #define MAX_INPUT_LEN     31
 #define SCREEN_COMPARE    4
+#define SCREEN_DESC       5
 
 // GUI state
 typedef struct {
@@ -47,6 +48,7 @@ typedef struct {
     int           input_field;       // which field (0=name,1=burst,2=arrival,3=class)
     char          input_buffer[MAX_INPUT_LEN];
     int           input_buf_len;
+    int           input_ignore_first;
     int           new_count;         // how many passengers user wants
     // Comparison screen data
     float         cmp_avg_wait[ALGO_COUNT];
@@ -68,4 +70,5 @@ void draw_text(SDL_Renderer *r, TTF_Font *f, const char *text, int x, int y, SDL
 void draw_rect_filled(SDL_Renderer *r, int x, int y, int w, int h, SDL_Color color);
 void run_all_algos(AppState *app);
 void draw_compare(AppState *app);
+void draw_desc(AppState *app);
 #endif

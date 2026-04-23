@@ -41,9 +41,9 @@ int gui_init(AppState *app) {
     if (TTF_Init() < 0) return 0;
 
     app->window = SDL_CreateWindow(
-        "✈  Airport CPU Scheduling Simulator",
+        "Airport CPU Scheduling Simulator",
         SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED,
-        WINDOW_W, WINDOW_H, SDL_WINDOW_SHOWN
+        WINDOW_W, WINDOW_H, SDL_WINDOW_SHOWN | SDL_WINDOW_RESIZABLE
     );
     if (!app->window) return 0;
 
@@ -67,6 +67,7 @@ int gui_init(AppState *app) {
     app->input_passenger = 0;
     app->input_field     = 0;
     app->input_buf_len   = 0;
+    app->input_ignore_first = 0;
     app->new_count       = 0;
     memset(app->input_buffer, 0, MAX_INPUT_LEN);
     app->last_anim_time   = 0;
@@ -110,10 +111,10 @@ void draw_menu(AppState *app) {
     const char *algos[] = {
         "1.  MLQ            Multi Level Queue",
         "2.  MLFQ           Multi Level Feedback Queue",
-        "3.  RR + Priority  Hybrid Algorithm",
+        "3.  Hybrid         RR + Priority Scheduling",
         "4.  FCFS           First Come First Serve",
         "5.  SJF            Shortest Job First",
-        "6.  Round Robin    Equal Time Quantum",
+        "6.  RR             Round Robin",
         "7.  Priority       Pure Priority Scheduling"
     };
     SDL_Color btn_colors[] = {
@@ -141,9 +142,9 @@ void draw_menu(AppState *app) {
     }
 
     
-    draw_text(r, app->font_medium, "                  ENTER to run  |  1-7 select  |  I = input  |  C = compare all  |  Q to quit",
-    118, 615, (SDL_Color){201, 163, 39, 255});
-draw_text(r, app->font_medium, "                  Eshal Adnan (24K-0518)  |  Sarosh Morani (24K-0999)  |  Abdul Wasay (24K-0744)",
+    draw_text(r, app->font_small, "                                           ENTER=run  |  1-7=select  |  I=input  |  C=compare  |  D=description  |  Q=quit",
+    108, 605, (SDL_Color){201, 163, 39, 255});
+    draw_text(r, app->font_medium, "                  Eshal Adnan (24K-0518)    Sarosh Morani (24K-0999)    Abdul Wasay (24K-0744)",
     80, 655, (SDL_Color){150, 180, 255, 255});
 }
 
@@ -153,15 +154,15 @@ draw_text(r, app->font_medium, "                  Eshal Adnan (24K-0518)  |  Sar
 void draw_results(AppState *app) {
     SDL_Renderer *r = app->renderer;
     SDL_Color white  = {255,255,255,255};
-    SDL_Color yellow = {255,220, 50,255};
+    SDL_Color yellow = {201,163, 39,255};
     SDL_Color gray   = {150,150,160,255};
 
     const char *algo_names[] = {
-        "MLQ — Multi Level Queue",
-        "MLFQ — Multi Level Feedback Queue",
+        "MLQ  Multi Level Queue",
+        "MLFQ  Multi Level Feedback Queue",
         "RR + Priority Hybrid",
-        "FCFS — First Come First Serve",
-        "SJF — Shortest Job First",
+        "FCFS  First Come First Serve",
+        "SJF  Shortest Job First",
         "Round Robin",
         "Priority Scheduling"
     };
@@ -170,7 +171,7 @@ void draw_results(AppState *app) {
 
     Uint32 now = SDL_GetTicks();
     if (app->gantt_anim_index < app->scheduler.gantt_count &&
-        now - app->last_anim_time > 300) {
+        now - app->last_anim_time > 100) {
         app->gantt_anim_index++;
         app->last_anim_time = now;
     }
@@ -183,7 +184,7 @@ void draw_results(AppState *app) {
             total_time = app->scheduler.gantt[i].end_time;
 
     int gantt_x = 50, gantt_y = 105;
-    int gantt_w = 1000, gantt_h = 50;
+    int gantt_w = WINDOW_W - 100, gantt_h = 35;
     float scale = (total_time > 0) ? (float)gantt_w / total_time : 1;
 
     for (int i = 0; i < app->gantt_anim_index && i < app->scheduler.gantt_count; i++) {
@@ -192,82 +193,87 @@ void draw_results(AppState *app) {
         int bw = (int)((g->end_time - g->start_time) * scale);
         if (bw < 2) bw = 2;
 
+        // Cap block so it never overflows gantt area
+        if (bx + bw > gantt_x + gantt_w)
+            bw = gantt_x + gantt_w - bx;
+
         SDL_Color bc = get_priority_color(g->priority);
         draw_rect_filled(r, bx, gantt_y, bw - 1, gantt_h, bc);
 
-        if (bw > 30)
-            draw_text(r, app->font_small, g->name, bx + 4, gantt_y + 17,
+        if (bw > 15)
+            draw_text(r, app->font_small, g->name, bx + 4, gantt_y + 11,
                 (SDL_Color){15,15,25,255});
 
         char t[16];
-        if (g->start_time % 5 == 0) {
-            snprintf(t, 16, "%d", g->start_time);
-            draw_text(r, app->font_small, t, bx, gantt_y + gantt_h + 4, gray);
-        }
-    }
+        snprintf(t, 16, "%d", g->start_time);
+        draw_text(r, app->font_small, t, bx, gantt_y + gantt_h + 4, gray);
 
-    // Final time label
-    if (app->gantt_anim_index >= app->scheduler.gantt_count && total_time > 0) {
-        char t[16];
-        snprintf(t, 16, "%d", total_time);
-        draw_text(r, app->font_small, t,
-            gantt_x + gantt_w - 15, gantt_y + gantt_h + 4, gray);
+        if (i == app->gantt_anim_index - 1) {
+            int ex = gantt_x + (int)(g->end_time * scale);
+            if (ex > gantt_x + gantt_w) ex = gantt_x + gantt_w;
+            snprintf(t, 16, "%d", g->end_time);
+            draw_text(r, app->font_small, t, ex - 8, gantt_y + gantt_h + 4, gray);
+        }
     }
 
     draw_text(r, app->font_medium, "Passenger Results", 50, 195, white);
 
     SDL_Color hdr = {20,30,60,255};
-    draw_rect_filled(r, 50, 225, 1000, 28, hdr);
+    draw_rect_filled(r, 50, 225, WINDOW_W - 100, 28, hdr);
     draw_text(r, app->font_small, "Name",        60,  230, yellow);
-    draw_text(r, app->font_small, "Class",       200, 230, yellow);
-    draw_text(r, app->font_small, "Arrival",     330, 230, yellow);
-    draw_text(r, app->font_small, "Burst",       460, 230, yellow);
-    draw_text(r, app->font_small, "Waiting",     590, 230, yellow);
-    draw_text(r, app->font_small, "Turnaround",  720, 230, yellow);
-    draw_text(r, app->font_small, "Completion",  880, 230, yellow);
+    draw_text(r, app->font_small, "Class",       220, 230, yellow);
+    draw_text(r, app->font_small, "Arrival",     400, 230, yellow);
+    draw_text(r, app->font_small, "Burst",       550, 230, yellow);
+    draw_text(r, app->font_small, "Waiting",     700, 230, yellow);
+    draw_text(r, app->font_small, "Turnaround",  870, 230, yellow);
+    draw_text(r, app->font_small, "Completion",  1040,230, yellow);
 
     const char *class_names[] = {"First Class", "Business", "Economy"};
 
-    int max_visible = (WINDOW_H - 320) / 30;
-    for (int i = 0; i < app->scheduler.count && i < max_visible; i++) {
+    int max_visible = (WINDOW_H - 340) / 30;
+    int start = app->results_scroll;
+    if (start > app->scheduler.count - max_visible) start = app->scheduler.count - max_visible;
+    if (start < 0) start = 0;
+
+    for (int i = start; i < app->scheduler.count && i < start + max_visible; i++) {
         Passenger *p = &app->scheduler.passengers[i];
-        int ry = 258 + i * 30;
+        int ry = 258 + (i - start) * 30;
 
         SDL_Color row_bg = (i % 2 == 0)
             ? (SDL_Color){10,18,40,255}
             : (SDL_Color){15,24,50,255};
-        draw_rect_filled(r, 50, ry, 1000, 30, row_bg);
+        draw_rect_filled(r, 50, ry, WINDOW_W - 100, 30, row_bg);
 
         SDL_Color cc = get_priority_color(p->priority);
         char buf[32];
 
         draw_text(r, app->font_small, p->name,                  60,  ry+8, white);
-        draw_text(r, app->font_small, class_names[p->priority], 200, ry+8, cc);
+        draw_text(r, app->font_small, class_names[p->priority], 220, ry+8, cc);
 
         snprintf(buf,32,"%d", p->arrival_time);
-        draw_text(r, app->font_small, buf, 330, ry+8, white);
+        draw_text(r, app->font_small, buf, 400, ry+8, white);
         snprintf(buf,32,"%d", p->burst_time);
-        draw_text(r, app->font_small, buf, 460, ry+8, white);
+        draw_text(r, app->font_small, buf, 550, ry+8, white);
         snprintf(buf,32,"%d", p->waiting_time);
-        draw_text(r, app->font_small, buf, 590, ry+8, white);
+        draw_text(r, app->font_small, buf, 700, ry+8, white);
         snprintf(buf,32,"%d", p->turnaround_time);
-        draw_text(r, app->font_small, buf, 720, ry+8, white);
+        draw_text(r, app->font_small, buf, 870, ry+8, white);
         snprintf(buf,32,"%d", p->completion_time);
-        draw_text(r, app->font_small, buf, 880, ry+8, white);
+        draw_text(r, app->font_small, buf, 1040, ry+8, white);
     }
 
-    int max_vis = (WINDOW_H - 320) / 30;
+    int max_vis = (WINDOW_H - 340) / 30;
     int shown = app->scheduler.count < max_vis ? app->scheduler.count : max_vis;
     int ay = 258 + shown * 30 + 8;
-    draw_rect_filled(r, 50, ay, 1000, 35, (SDL_Color){40,40,65,255});
+    draw_rect_filled(r, 50, ay, WINDOW_W - 100, 35, (SDL_Color){40,40,65,255});
     char avg[128];
     snprintf(avg, 128, "Avg Waiting Time: %.2f        Avg Turnaround Time: %.2f",
         app->scheduler.avg_waiting_time,
         app->scheduler.avg_turnaround_time);
     draw_text(r, app->font_medium, avg, 100, ay+8, yellow);
 
-    draw_text(r, app->font_small, "Press BACKSPACE to go back  |  1-7 to switch algorithm",
-        300, 660, gray);
+    draw_text(r, app->font_small, "BACKSPACE = back  |  1-7 = switch algo",
+        WINDOW_W/2 - 180, WINDOW_H - 30, gray);
 }
 
 // ═══════════════════════════════════════════
@@ -283,12 +289,11 @@ void gui_run(AppState *app) {
             if (e.type == SDL_QUIT) { running = 0; break; }
 
             if (app->screen == SCREEN_INPUT && e.type == SDL_TEXTINPUT) {
-                if (app->input_buf_len < MAX_INPUT_LEN - 1) {
-                    char c = e.text.text[0];
-                    if (c != 'i' && c != 'I') {
-                        app->input_buffer[app->input_buf_len++] = c;
-                        app->input_buffer[app->input_buf_len]   = '\0';
-                    }
+                if (app->input_ignore_first) {
+                    app->input_ignore_first = 0;
+                } else if (app->input_buf_len < MAX_INPUT_LEN - 1) {
+                    app->input_buffer[app->input_buf_len++] = e.text.text[0];
+                    app->input_buffer[app->input_buf_len]   = '\0';
                 }
             }
 
@@ -303,8 +308,10 @@ void gui_run(AppState *app) {
                         app->results_scroll = 0;
                     } else if (app->screen == SCREEN_COMPARE) {
                         app->screen = SCREEN_MENU;
+                    } else if (app->screen == SCREEN_DESC) {
+                        app->screen = SCREEN_MENU;
                     }
-                }
+                }   
 
                 // ── UP/DOWN scroll on results ──
                 if (app->screen == SCREEN_RESULTS) {
@@ -398,7 +405,9 @@ void gui_run(AppState *app) {
                             run_all_algos(app);
                             app->screen = SCREEN_COMPARE;
                             break;
-
+                        case SDLK_d:
+                            app->screen = SCREEN_DESC;
+                            break;
                         case SDLK_i:
                             app->screen          = SCREEN_INPUT;
                             app->input_step      = 0;
@@ -406,6 +415,7 @@ void gui_run(AppState *app) {
                             app->input_field     = 0;
                             app->input_buf_len   = 0;
                             memset(app->input_buffer, 0, MAX_INPUT_LEN);
+                            app->input_ignore_first = 1;
                             break;
 
                         case SDLK_1: app->selected_algo = ALGO_MLQ;      break;
@@ -469,7 +479,7 @@ void gui_run(AppState *app) {
         if (app->screen == SCREEN_RESULTS) draw_results(app);
         if (app->screen == SCREEN_INPUT)   draw_input(app);
         if (app->screen == SCREEN_COMPARE) draw_compare(app);
-
+        if (app->screen == SCREEN_DESC)    draw_desc(app);
         SDL_RenderPresent(app->renderer);
         SDL_Delay(16);
     }
@@ -699,4 +709,56 @@ void draw_compare(AppState *app) {
     draw_text(r, app->font_small,
         "Press BACKSPACE to go back",
         430, 660, gray);
+}
+void draw_desc(AppState *app) {
+    SDL_Renderer *r = app->renderer;
+    SDL_Color white  = {255,255,255,255};
+    SDL_Color yellow = {201,163, 39,255};
+    SDL_Color gray   = {150,150,160,255};
+
+    draw_text(r, app->font_large, "Algorithm Descriptions", WINDOW_W/2 - 200, 15, yellow);
+
+    const char *names[] = {
+        "1. MLQ    Multi Level Queue",
+        "2. MLFQ    Multi Level Feedback Queue",
+        "3. RR + Priority    Hybrid Algorithm",
+        "4. FCFS    First Come First Serve",
+        "5. SJF    Shortest Job First",
+        "6. Round Robin    Equal Time Quantum",
+        "7. Priority    Pure Priority Scheduling"
+    };
+
+    const char *descs[] = {
+        "Fixed queues per class. First Class always served before Business, then Economy. Processes NEVER move queues. Risk: low priority may starve.",
+        "Smart adaptive queues. Processes demoted DOWN if they use full quantum. Promoted UP if waiting too long (aging). Prevents starvation. Used in real OS.",
+        "Custom hybrid algo. Priority decides order between classes. Within same class, Round Robin gives equal turns. Prevents both inter and intra class starvation.",
+        "Simplest algorithm. Whoever arrived first gets served first. No priority involved. Problem: long jobs block short ones behind them (convoy effect).",
+        "Shortest check-in time goes first among all arrived passengers. Gives minimum average waiting time mathematically. Needs burst time known in advance.",
+        "Everyone gets equal turns with fixed time quantum of 2. No priority at all — completely fair. Economy treated same as First Class. Higher turnaround time.",
+        "Strict class priority. First Class fully done before Business starts. Business done before Economy. Simple but Economy may never get served if others keep arriving."
+    };
+
+    SDL_Color colors[] = {
+        {255,180, 50,255},
+        { 50,180,255,255},
+        { 80,200,120,255},
+        {220, 80, 80,255},
+        {180, 80,220,255},
+        { 80,220,200,255},
+        {220,140, 50,255}
+    };
+
+    int box_w = WINDOW_W - 100;
+
+    for (int i = 0; i < ALGO_COUNT; i++) {
+        int y = 65 + i * 90;
+        draw_rect_filled(r, 50, y, 6, 75, colors[i]);
+        draw_rect_filled(r, 60, y, box_w, 75, (SDL_Color){20,30,55,255});
+        draw_rect_outline(r, 60, y, box_w, 75, (SDL_Color){40,50,80,255});
+        draw_text(r, app->font_medium, names[i], 75, y + 8, colors[i]);
+        draw_text(r, app->font_small,  descs[i], 75, y + 42, white);
+    }
+
+    draw_text(r, app->font_small, "Press BACKSPACE to go back",
+        WINDOW_W/2 - 130, WINDOW_H - 30, gray);
 }
