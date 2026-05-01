@@ -32,7 +32,7 @@ We used a **real world airport checkin system**.
 - Real-Life Airport Theme  
 - Keyboard Controls
 
-`/screenshots/image(2).png`
+`/screenshots/image (2).png`
 
 
 # Scheduling Algorithms Included
@@ -63,7 +63,7 @@ Equal time quantum for all
 ## Priority Scheduling
 Strict priority based execution
 
-`/screenshots/image(4).png`
+`/screenshots/image (4).png`
 
 ## Results Screen
 - Animated Gantt Chart
@@ -71,12 +71,12 @@ Strict priority based execution
 - Turnaround Time
 - Completion Time
 
-`/screenshots/image(3).png`
+`/screenshots/image (3).png`
 
 ## Comparison Screen
 Compare all 7 algorithms side by side.
 
-`/screenshots/image(1).png`
+`/screenshots/image (1).png`
 
 
 # Contributors
